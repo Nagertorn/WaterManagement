@@ -4,7 +4,7 @@ CFLAGS = -Wall -Wextra -std=c11 -O2
 LDFLAGS = -lsqlite3
 
 # Target executable name
-TARGET = WM_Central
+TARGET = WM_Central.out
 
 # Source and Object files
 SRCS = WM_Central.c db.c

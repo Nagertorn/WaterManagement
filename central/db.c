@@ -25,9 +25,9 @@ db_status_t init_db(const char *db_name, sqlite3 **db) {
 void close_db(sqlite3 **db) {
 	if(db) {
 		if(sqlite3_close(db)) {
-			fprintf(stdout, "[DB] Databese closed successfully");
+			fprintf(stdout, "[DB] Databese closed successfully\n");
 		} else {
-			fprintf(stderr, "[DB ERROR] Databese closed unsuccessfully");
+			fprintf(stderr, "[DB ERROR] Databese closed unsuccessfully\n");
 		}
 	}
 }	
