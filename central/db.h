@@ -14,6 +14,6 @@ db_status_t init_db(const char *db_name, sqlite3 **db);
 
 db_status_t load_registered_stations(sqlite3 *db);
 
-void close_db(sqlite3 *db);
+void close_db(sqlite3 **db);
 
 #endif

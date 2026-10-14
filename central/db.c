@@ -1,12 +1,12 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <db.h>
+#include "db.h"
 
-db_status_t init_db(const char *db_name, sqlite **db) {
+db_status_t init_db(const char *db_name, sqlite3 **db) {
 	int result_code = sqlite3_open(db_name, db);
 
 	if (result_code != SQLITE_OK) {
-		fprintf(stderr, "[DB ERROR] Cannot open databese:\n%s\n", sqlite3_errmsg());
+		fprintf(stderr, "[DB ERROR] Cannot open databese:\n%s\n", sqlite3_errmsg(*db));
 		return DB_ERR_CANNOT_OPEN;
 	}
 
@@ -15,16 +15,16 @@ db_status_t init_db(const char *db_name, sqlite **db) {
 		"	id TEXT PRIMARY KEY,			"
 		"	location TEXT NOT NULL,			"
 		"	status TEXT DEFAULT  'DESCONECTADA'	"
-		");
+		");						";
 
 	printf("[DB] Database initialized successfully (%s)\n", db_name);
 	return DB_SUCCESS;
 }
 
 
-void close_db(sqlite **db) {
+void close_db(sqlite3 **db) {
 	if(db) {
-		if(sql3_close(db)) {
+		if(sqlite3_close(db)) {
 			fprintf(stdout, "[DB] Databese closed successfully");
 		} else {
 			fprintf(stderr, "[DB ERROR] Databese closed unsuccessfully");

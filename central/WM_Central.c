@@ -27,7 +27,7 @@ int main(int argc, char* argv[]) {
 		return EXIT_FAILURE;
 	}
 
-	close_db(db);
+	close_db(&db);
 
 	return EXIT_SUCCESS;
 
