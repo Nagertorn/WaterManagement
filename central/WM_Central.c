@@ -22,9 +22,18 @@ int main(int argc, char* argv[]) {
 	sqlite3* db = NULL;
 
 	db_status_t db_response = init_db("water_managment.db", &db);
-	if (db_response != DB_SUCCESS) {
-		fprintf(stderr, "[MAIN ERROR] Database initialization failed with status code: %d\n", db_response);
-		return EXIT_FAILURE;
+
+	switch (db_response) {
+		case DB_SUCCESS:
+			break;
+
+		case DB_ERR_CREATE_TABLE:
+			fprintf(stderr, "[MAIN ERROR] Database creation failed with status code: %d\n", db_response);
+			return EXIT_FAILURE;
+
+		default:
+			fprintf(stderr, "[MAIN ERROR] Database failed with status code: %d\n", db_response);
+			return EXIT_FAILURE;
 	}
 
 	close_db(&db);
