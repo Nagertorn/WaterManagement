@@ -12,7 +12,11 @@ typedef enum {
 
 db_status_t init_db(const char *db_name, sqlite3 **db);
 
-db_status_t load_registered_stations(sqlite3 *db);
+db_status_t read_watering_stations(sqlite3 *db);
+
+db_status_t create_watering_station(sqlite3 *db, const char *id, const char *location, const char *status);
+
+db_status_t update_watering_station_status(sqlite3 *db, const char *status);
 
 void close_db(sqlite3 **db);
 

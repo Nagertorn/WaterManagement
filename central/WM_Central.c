@@ -36,6 +36,9 @@ int main(int argc, char* argv[]) {
 			return EXIT_FAILURE;
 	}
 
+	db_response = create_watering_station(db, "1", "Palma", "Albaricoque");
+	db_response = read_watering_stations(db);
+
 	close_db(&db);
 
 	return EXIT_SUCCESS;
