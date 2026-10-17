@@ -21,7 +21,7 @@ int main(int argc, char* argv[]) {
 
 	sqlite3* db = NULL;
 
-	db_status_t db_response = init_db("water_managment.db", &db);
+	db_status_t db_response = init_db("data/water_managment.db", &db);
 
 	switch (db_response) {
 		case DB_SUCCESS:
