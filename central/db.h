@@ -18,6 +18,10 @@ db_status_t create_watering_station(sqlite3 *db, const char *id, const char *loc
 
 db_status_t update_watering_station_status(sqlite3 *db, const char *id, const char *status);
 
+db_status_t read_operators(sqlite3 *db);
+
+db_status_t create_operator(sqlite3 *db, const char *id, const char *name);
+
 void close_db(sqlite3 **db);
 
 #endif

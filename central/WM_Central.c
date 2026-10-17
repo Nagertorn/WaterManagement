@@ -36,8 +36,17 @@ int main(int argc, char* argv[]) {
 			return EXIT_FAILURE;
 	}
 
-	db_response = create_watering_station(db, "1", "Palma", "Albaricoque");
+	db_response = create_watering_station(db, "1", "A", "D");
+	db_response = create_watering_station(db, "2", "B", "D");
+	db_response = create_watering_station(db, "3", "C", "A");
 	db_response = read_watering_stations(db);
+	db_response = update_watering_station_status(db, "1", "Actualizado");
+	db_response = read_watering_stations(db);
+
+	db_response = create_operator(db, "1", "Javier");
+	db_response = create_operator(db, "2", "Paco");
+	db_response = create_operator(db, "3", "Amadeus");
+	db_response = read_operators(db);
 
 	close_db(&db);
 

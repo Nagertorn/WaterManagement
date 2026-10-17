@@ -33,7 +33,7 @@ db_status_t init_db(const char *db_name, sqlite3 **db) {
 
 	// CREATE OPERATORS TABLE
 	const char* sql_create_operators_table =
-		"CREATE TABLE IF NOT EXISTS operators ("
+		"CREATE TABLE IF NOT EXISTS operator ("
 		"	id TEXT PRIMARY KEY,"
 		"	name TEXT"
 		");";
@@ -97,6 +97,35 @@ db_status_t update_watering_station_status(sqlite3 *db, const char *id, const ch
 	int result_code = sqlite3_exec(db, sql_query, NULL, NULL, &error_message);
 	if (result_code != SQLITE_OK) {
 		fprintf(stderr, "[DB ERROR] Update: watering_station: \n%s\n", error_message);
+		sqlite3_free(error_message);
+		return DB_ERR_CREATE_TABLE;
+	}
+
+	return DB_SUCCESS;
+}
+
+db_status_t read_operators(sqlite3 *db) {
+	const char* sql_query = "SELECT * FROM operator;";
+
+	char* error_message = NULL;
+	int result_code = sqlite3_exec(db, sql_query, callbackF, NULL, &error_message);
+	if (result_code != SQLITE_OK) {
+		fprintf(stderr, "[DB ERROR] Select: operator: \n%s\n", error_message);
+		sqlite3_free(error_message);
+		return DB_ERR_CREATE_TABLE;
+	}
+
+	return DB_SUCCESS;
+}
+
+db_status_t create_operator(sqlite3 *db, const char *id, const char *name) {
+	char sql_query[256];
+	snprintf(sql_query, sizeof(sql_query), "INSERT INTO operator (id, name) VALUES ('%s', '%s')", id, name);
+
+	char* error_message = NULL;
+	int result_code = sqlite3_exec(db, sql_query, NULL, NULL, &error_message);
+	if (result_code != SQLITE_OK) {
+		fprintf(stderr, "[DB ERROR] Insert: operator: \n%s\n", error_message);
 		sqlite3_free(error_message);
 		return DB_ERR_CREATE_TABLE;
 	}
