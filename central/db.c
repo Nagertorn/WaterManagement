@@ -89,6 +89,21 @@ db_status_t create_watering_station(sqlite3 *db, const char *id, const char *loc
 	return DB_SUCCESS;
 }
 
+db_status_t update_watering_station_status(sqlite3 *db, const char *id, const char *status) {
+	char sql_query[256];
+	snprintf(sql_query, sizeof(sql_query), "UPDATE watering_station SET status = '%s' WHERE id = '%s'", status, id);
+
+	char* error_message = NULL;
+	int result_code = sqlite3_exec(db, sql_query, NULL, NULL, &error_message);
+	if (result_code != SQLITE_OK) {
+		fprintf(stderr, "[DB ERROR] Update: watering_stations: \n%s\n", error_message);
+		sqlite3_free(error_message);
+		return DB_ERR_CREATE_TABLE;
+	}
+
+	return DB_SUCCESS;
+}
+
 void close_db(sqlite3 **db) {
 	if(db) {
 		int result_code = sqlite3_close(*db);
