@@ -66,7 +66,7 @@ db_status_t read_watering_stations(sqlite3 *db) {
 	char* error_message = NULL;
 	int result_code = sqlite3_exec(db, sql_query, callbackF, NULL, &error_message);
 	if (result_code != SQLITE_OK) {
-		fprintf(stderr, "[DB ERROR] Select: watering_stations: \n%s\n", error_message);
+		fprintf(stderr, "[DB ERROR] Select: watering_station: \n%s\n", error_message);
 		sqlite3_free(error_message);
 		return DB_ERR_CREATE_TABLE;
 	}
@@ -81,7 +81,7 @@ db_status_t create_watering_station(sqlite3 *db, const char *id, const char *loc
 	char* error_message = NULL;
 	int result_code = sqlite3_exec(db, sql_query, NULL, NULL, &error_message);
 	if (result_code != SQLITE_OK) {
-		fprintf(stderr, "[DB ERROR] Select: watering_stations: \n%s\n", error_message);
+		fprintf(stderr, "[DB ERROR] Insert: watering_station: \n%s\n", error_message);
 		sqlite3_free(error_message);
 		return DB_ERR_CREATE_TABLE;
 	}
@@ -96,7 +96,7 @@ db_status_t update_watering_station_status(sqlite3 *db, const char *id, const ch
 	char* error_message = NULL;
 	int result_code = sqlite3_exec(db, sql_query, NULL, NULL, &error_message);
 	if (result_code != SQLITE_OK) {
-		fprintf(stderr, "[DB ERROR] Update: watering_stations: \n%s\n", error_message);
+		fprintf(stderr, "[DB ERROR] Update: watering_station: \n%s\n", error_message);
 		sqlite3_free(error_message);
 		return DB_ERR_CREATE_TABLE;
 	}
