@@ -7,7 +7,10 @@ TARGET = WM_Central.out
 SRCS = $(wildcard src/*.c)
 OBJS = $(SRCS:.c=.o)
 
-all: $(TARGET)
+all: create-dirs $(TARGET)
+
+create-dirs:
+	mkdir -p data
 
 $(TARGET): $(OBJS)
 	$(CC) $(CFLAGS) -o $@ $(OBJS) $(LDFLAGS)
@@ -19,6 +22,6 @@ clean:
 	rm -f $(OBJS) $(TARGET)
 
 clean-db: clean
-	rm -f water_management.db
+	rm -f data/water_management.db
 
-.PHONY: all clean clean-db
+.PHONY: all create-dirs clean clean-db

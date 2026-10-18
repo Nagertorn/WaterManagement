@@ -1,3 +1,6 @@
 *.out
 *.o
 *.db
+
+.cache
+compile_commands.json

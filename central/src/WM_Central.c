@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
 #include "db.h"
 #include "kafka_client.h"
 
@@ -57,6 +58,7 @@ int main(int argc, char* argv[]) {
 
 	close_db(&db);
 
+	sleep(5);
 	return EXIT_SUCCESS;
 
 }

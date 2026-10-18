@@ -2,11 +2,20 @@ FROM gcc:13.2
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libsqlite3-dev \
+    librdkafka-dev \
     make \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
-COPY Makefile db.h db.c WM_Central.c ./
+COPY Makefile ./
+COPY include/ ./include/
+COPY src/ ./src/
 
-CMD ["sh", "-c", "make && ./WM_Central.out 8080 127.0.0.1 9092"]
+RUN mkdir -p data
+
+RUN make
+
+EXPOSE 8080
+
+ENTRYPOINT ["/app/WM_Central.out"]
