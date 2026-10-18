@@ -1,6 +1,6 @@
 CC = gcc
 CFLAGS = -Wall -Wextra -std=c11 -O2 -Iinclude
-LDFLAGS = -lsqlite3
+LDFLAGS = -lsqlite3 -lrdkafka -pthread
 
 TARGET = WM_Central.out
 

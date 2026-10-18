@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "db.h"
+#include "kafka_client.h"
 
 int main(int argc, char* argv[]) {
 
@@ -18,9 +19,10 @@ int main(int argc, char* argv[]) {
 	printf("ip kafka: %s\n", ip_kafka);
 	printf("port kafka: %d\n", port_kafka);
 
+	char kafka_server[128];
+    snprintf(kafka_server, sizeof(kafka_server), "%s:%s", argv[2], argv[3]);
 
 	sqlite3* db = NULL;
-
 	db_status_t db_response = init_db("data/water_managment.db", &db);
 
 	switch (db_response) {
@@ -35,6 +37,11 @@ int main(int argc, char* argv[]) {
 			fprintf(stderr, "[MAIN ERROR] Database failed with status code: %d\n", db_response);
 			return EXIT_FAILURE;
 	}
+
+    kafka_context_t kafka_ctx;
+    if (init_kafka(&kafka_ctx, kafka_server, "wm_central_group") == KAFKA_SUCCESS) {
+        kafka_send_message(&kafka_ctx, "central_events", "WM_Central is ONLINE");
+    }
 
 	db_response = create_watering_station(db, "1", "A", "D");
 	db_response = create_watering_station(db, "2", "B", "D");
