@@ -4,6 +4,13 @@
 #include "db.h"
 #include "kafka_client.h"
 
+void on_kafka_event_received(const char *topic, const char *payload) {
+    printf("[CENTRAL CORE] Received from topic '%s': %s\n", topic, payload);
+
+    //pthread_mutex_lock(&core_mutex);
+    //pthread_mutex_unlock(&core_mutex);
+}
+
 int main(int argc, char* argv[]) {
 
 	if (argc != 4) {
@@ -42,6 +49,7 @@ int main(int argc, char* argv[]) {
     kafka_context_t kafka_ctx;
     if (init_kafka(&kafka_ctx, kafka_server, "wm_central_group") == KAFKA_SUCCESS) {
         kafka_send_message(&kafka_ctx, "central_events", "WM_Central is ONLINE");
+	start_kafka_consumer(&kafka_ctx, "central_events", on_kafka_event_received);
     }
 
 	db_response = create_watering_station(db, "1", "A", "D");
@@ -56,9 +64,12 @@ int main(int argc, char* argv[]) {
 	db_response = create_operator(db, "3", "Amadeus");
 	db_response = read_operators(db);
 
+	while (1) {
+		sleep(1);
+	}
+
 	close_db(&db);
 
-	sleep(5);
 	return EXIT_SUCCESS;
 
 }
