@@ -4,11 +4,17 @@
 #include "db.h"
 #include "kafka_client.h"
 
-void on_kafka_event_received(const char *topic, const char *payload) {
-    printf("[CENTRAL CORE] Received from topic '%s': %s\n", topic, payload);
+static pthread_mutex_t core_mutex = PTHREAD_MUTEX_INITIALIZER;
+static sqlite3* db = NULL;
 
-    //pthread_mutex_lock(&core_mutex);
-    //pthread_mutex_unlock(&core_mutex);
+void on_kafka_event_received(const char *topic, const char *payload) {
+	printf("[CENTRAL CORE] Received from topic '%s': %s\n", topic, payload);
+
+	pthread_mutex_lock(&core_mutex);
+
+	update_watering_station_status(db, "1", payload);
+
+	pthread_mutex_unlock(&core_mutex);
 }
 
 int main(int argc, char* argv[]) {
@@ -30,7 +36,6 @@ int main(int argc, char* argv[]) {
 	char kafka_server[128];
     snprintf(kafka_server, sizeof(kafka_server), "%s:%s", argv[2], argv[3]);
 
-	sqlite3* db = NULL;
 	db_status_t db_response = init_db("data/water_managment.db", &db);
 
 	switch (db_response) {
@@ -55,16 +60,15 @@ int main(int argc, char* argv[]) {
 	db_response = create_watering_station(db, "1", "A", "D");
 	db_response = create_watering_station(db, "2", "B", "D");
 	db_response = create_watering_station(db, "3", "C", "A");
-	db_response = read_watering_stations(db);
 	db_response = update_watering_station_status(db, "1", "Actualizado");
-	db_response = read_watering_stations(db);
 
 	db_response = create_operator(db, "1", "Javier");
 	db_response = create_operator(db, "2", "Paco");
 	db_response = create_operator(db, "3", "Amadeus");
-	db_response = read_operators(db);
 
 	while (1) {
+		printf("Esperando...\n");
+		fflush(stdout);
 		sleep(1);
 	}
 

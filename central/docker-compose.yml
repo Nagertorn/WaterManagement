@@ -21,6 +21,12 @@ services:
       KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
       KAFKA_LOG_DIRS: /tmp/kraft-combined-logs
       CLUSTER_ID: "gTBb85_WRXu6oQgq-brTQw"
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server localhost:9092 || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
     networks:
       - wm_net
 
@@ -34,7 +40,8 @@ services:
     volumes:
       - ./data:/app/data
     depends_on:
-      - broker
+      broker:
+        condition: service_healthy
     networks:
       - wm_net
     command: ["8080", "broker", "29092"]
