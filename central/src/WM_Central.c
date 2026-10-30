@@ -1,8 +1,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <string.h>
 #include "db.h"
 #include "kafka_client.h"
+#include "socket_server.h"
 
 static pthread_mutex_t core_mutex = PTHREAD_MUTEX_INITIALIZER;
 static sqlite3* db = NULL;
@@ -12,9 +14,38 @@ void on_kafka_event_received(const char *topic, const char *payload) {
 
 	pthread_mutex_lock(&core_mutex);
 
-	update_watering_station_status(db, "1", payload);
+	printf("Payload: %s", payload);
 
 	pthread_mutex_unlock(&core_mutex);
+}
+
+void on_socket_event_received(int client_fd, const char *message) {
+    printf("[CENTRAL SOCKET] Received from fd %d: %s\n", client_fd, message);
+
+    char command[32] = {0};
+    char ws_id[32] = {0};
+    char payload[128] = {0};
+
+    // Parsea comandos formateados como "COMMAND#WS_ID#PAYLOAD" (ej: REGISTER#1#Parque_Central)
+    if (sscanf(message, "%31[^#]#%31[^#]#%127s", command, ws_id, payload) >= 2) {
+        
+        pthread_mutex_lock(&core_mutex);
+
+        if (strcmp(command, "REGISTER") == 0) {
+            create_watering_station(db, ws_id, payload, "DISPONIBLE");
+            send_network_message(client_fd, "ACK#REGISTERED\n");
+
+        } else if (strcmp(command, "STATUS") == 0) {
+            update_watering_station_status(db, ws_id, payload);
+            send_network_message(client_fd, "ACK#STATUS_UPDATED\n");
+        } else {
+            send_network_message(client_fd, "NACK#UNKNOWN_COMMAND\n");
+        }
+
+        pthread_mutex_unlock(&core_mutex);
+    } else {
+        send_network_message(client_fd, "NACK#INVALID_FORMAT\n");
+    }
 }
 
 int main(int argc, char* argv[]) {
@@ -57,6 +88,14 @@ int main(int argc, char* argv[]) {
 		start_kafka_consumer(&kafka_ctx, "central_events", on_kafka_event_received);
     }
 
+	socket_server_t sock_server;
+    if (start_socket_server(&sock_server, port_monitors, on_socket_event_received) != SOCKET_SUCCESS) {
+        fprintf(stderr, "[MAIN ERROR] Failed to start socket server on port %d\n", port_monitors);
+        close_kafka(&kafka_ctx);
+        close_db(&db);
+        return EXIT_FAILURE;
+    }
+
 	db_response = create_watering_station(db, "1", "A", "D");
 	db_response = create_watering_station(db, "2", "B", "D");
 	db_response = create_watering_station(db, "3", "C", "A");
@@ -71,6 +110,8 @@ int main(int argc, char* argv[]) {
 		sleep(1);
 	}
 
+	stop_socket_server(&sock_server);
+    close_kafka(&kafka_ctx);
 	close_db(&db);
 
 	return EXIT_SUCCESS;
