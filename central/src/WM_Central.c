@@ -54,7 +54,7 @@ int main(int argc, char* argv[]) {
     kafka_context_t kafka_ctx;
     if (init_kafka(&kafka_ctx, kafka_server, "wm_central_group") == KAFKA_SUCCESS) {
         kafka_send_message(&kafka_ctx, "central_events", "WM_Central is ONLINE");
-	start_kafka_consumer(&kafka_ctx, "central_events", on_kafka_event_received);
+		start_kafka_consumer(&kafka_ctx, "central_events", on_kafka_event_received);
     }
 
 	db_response = create_watering_station(db, "1", "A", "D");
@@ -67,7 +67,6 @@ int main(int argc, char* argv[]) {
 	db_response = create_operator(db, "3", "Amadeus");
 
 	while (1) {
-		printf("Esperando...\n");
 		fflush(stdout);
 		sleep(1);
 	}
