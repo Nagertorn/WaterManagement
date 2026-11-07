@@ -107,19 +107,29 @@ static void* kafka_consumer_loop(void *arg) {
     return NULL;
 }
 
-kafka_status_t start_kafka_consumer(kafka_context_t *ctx, const char *topic, kafka_msg_callback_t callback) {
-    if (!ctx || !ctx->consumer || !topic || !callback) return KAFKA_ERR_SUBSCRIBE;
+kafka_status_t start_kafka_consumer(kafka_context_t *ctx, const char *topics_str, kafka_msg_callback_t callback) {
+    if (!ctx || !ctx->consumer || !topics_str || !callback) return KAFKA_ERR_SUBSCRIBE;
 
     ctx->msg_callback = callback;
 
     rd_kafka_topic_partition_list_t *topics = rd_kafka_topic_partition_list_new(1);
-    rd_kafka_topic_partition_list_add(topics, topic, RD_KAFKA_PARTITION_UA);
+
+	char topics_copy[256];
+    strncpy(topics_copy, topics_str, sizeof(topics_copy) - 1);
+    topics_copy[sizeof(topics_copy) - 1] = '\0';
+
+    char *token = strtok(topics_copy, ",");
+    while (token != NULL) {
+        while (*token == ' ') token++;
+        rd_kafka_topic_partition_list_add(topics, token, RD_KAFKA_PARTITION_UA);
+        token = strtok(NULL, ",");
+    }
 
     rd_kafka_resp_err_t err = rd_kafka_subscribe(ctx->consumer, topics);
     rd_kafka_topic_partition_list_destroy(topics);
 
     if (err) {
-        fprintf(stderr, "[KAFKA ERROR] Failed to subscribe to %s: %s\n", topic, rd_kafka_err2str(err));
+        fprintf(stderr, "[KAFKA ERROR] Failed to subscribe to %s: %s\n", topics_str, rd_kafka_err2str(err));
         return KAFKA_ERR_SUBSCRIBE;
     }
 

@@ -119,6 +119,24 @@ void on_kafka_event_received(const char *topic, const char *payload) {
 		if (sscanf(payload, "%31[^#]#%31[^#]#%d#%d", event_type, ws_id, &flow, &vol) == 4) {
 			if (strcmp(event_type, "TELEMETRY") == 0) {
 				printf("[CENTRAL TELEMETRÍA] %s -> Caudal: %d L/min | Acumulado: %d L\n", ws_id, flow, vol);
+
+				char op_telem[256];
+				snprintf(op_telem, sizeof(op_telem), "RESPONSE#ALL#%s#TELEMETRY#Caudal:%dL/min_Vol:%dL\n", ws_id, flow, vol);
+				kafka_send_message(&kafka_ctx, "operator_responses", op_telem);
+
+			} else if (strcmp(event_type, "END_WATERING") == 0) {
+				int total_vol = flow;
+				int total_duration = vol;
+
+				printf("\n=======================================================\n");
+				printf("[CENTRAL RESUMEN RIEGO] Estación: %s | Duración: %d s | Vol Total: %d L\n", ws_id, total_duration, total_vol);
+				printf("=======================================================\n\n");
+
+				update_watering_station_status(db, ws_id, "DISPONIBLE");
+
+				char op_resp[256];
+				snprintf(op_resp, sizeof(op_resp), "RESPONSE#ALL#%s#FINISHED#Volumen_Total:%dL_Duracion:%ds\n", ws_id, total_vol, total_duration);
+				kafka_send_message(&kafka_ctx, "operator_responses", op_resp);
 			}
 		}
 	}
@@ -170,11 +188,19 @@ void on_socket_event_received(int client_fd, const char *message) {
 				kafka_send_message(&kafka_ctx, "station_commands", cmd_msg);
 
 				send_network_message(client_fd, "ACK#LOCAL_WATER_AUTHORIZED\n");
+
 			} else {
 				printf("[CENTRAL] Denegando riego LOCAL en %s [Estado actual: %s]\n", 
 						ws_id, (db_res == DB_SUCCESS) ? status : "NO_ENCONTRADA");
 				send_network_message(client_fd, "NACK#UNAVAILABLE\n");
 			}
+
+		} else if (strcmp(command, "LOCAL_STOP_REQUEST") == 0) {
+			printf("[CENTRAL] Orden de parada manual recibida para %s desde su Monitor\n", ws_id);
+			char cmd_msg[256];
+			snprintf(cmd_msg, sizeof(cmd_msg), "STOP#%s#0\n", ws_id);
+			kafka_send_message(&kafka_ctx, "station_commands", cmd_msg);
+			send_network_message(client_fd, "ACK#STOP_SENT\n");
 		} else {
 			send_network_message(client_fd, "NACK#UNKNOWN_COMMAND\n");
 		}
@@ -211,8 +237,7 @@ int main(int argc, char* argv[]) {
 
 		sleep(1);
 
-		start_kafka_consumer(&kafka_ctx, "central_events", on_kafka_event_received);
-		start_kafka_consumer(&kafka_ctx, "central_requests", on_kafka_event_received);
+		start_kafka_consumer(&kafka_ctx, "central_events,central_requests", on_kafka_event_received);
 		printf("[CENTRAL KAFKA] Listening on 'central_events' and 'central_requests'\n");
 	}
 

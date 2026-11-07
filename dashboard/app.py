@@ -1,11 +1,16 @@
 import os
 import sqlite3
+import threading
 from flask import Flask, render_template_string
+from confluent_kafka import Consumer, KafkaError
 
 app = Flask(__name__)
 
-# Ruta a la base de datos SQLite (se ajusta según entorno local o Docker/Railway)
-DB_PATH = os.getenv("DB_PATH", "../central/data/water_managment.db")
+DB_PATH = os.getenv("DB_PATH")
+KAFKA_BOOTSTRAP_SERVERS = os.getenv("KAFKA_BOOTSTRAP_SERVERS")
+
+# Diccionario global para la telemetría en directo
+telemetry_live = {}
 
 HTML_TEMPLATE = """
 <!DOCTYPE html>
@@ -14,7 +19,7 @@ HTML_TEMPLATE = """
     <meta charset="UTF-8">
     <title>WM Central - Panel de Monitorización</title>
     <!-- Recarga la página cada 2 segundos para ver cambios en tiempo real -->
-    <meta http-equiv="refresh" content="2">
+    <meta http-equiv="refresh" content="1">
     <style>
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #121212; color: #e0e0e0; margin: 0; padding: 20px; }
         .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #333; padding-bottom: 10px; margin-bottom: 20px; }
@@ -23,14 +28,12 @@ HTML_TEMPLATE = """
         th, td { padding: 14px; text-align: left; border-bottom: 1px solid #2a2a2a; }
         th { background-color: #1e1e1e; color: #aaa; text-transform: uppercase; font-size: 0.85em; letter-spacing: 1px; }
         
-        /* Reglas CSS para los estados requeridos por la práctica */
         .status-badge { padding: 6px 12px; border-radius: 4px; font-weight: bold; display: inline-block; }
-        
-        .DISPONIBLE { background-color: #2e7d32; color: #ffffff; } /* VERDE */
-        .REGANDO { background-color: #1b5e20; color: #ffffff; animation: blink 1s infinite; } /* VERDE PARPADEANDO */
-        .LEAK { background-color: #c62828; color: #ffffff; } /* ROJO */
-        .OUT_OF_SERVICE { background-color: #ef6c00; color: #ffffff; } /* NARANJA */
-        .DESCONECTADA { background-color: #424242; color: #bdbdbd; } /* GRIS */
+        .DISPONIBLE { background-color: #2e7d32; color: #ffffff; }
+        .REGANDO { background-color: #1b5e20; color: #ffffff; animation: blink 1s infinite; }
+        .LEAK { background-color: #c62828; color: #ffffff; }
+        .OUT_OF_SERVICE { background-color: #ef6c00; color: #ffffff; }
+        .DESCONECTADA { background-color: #424242; color: #bdbdbd; }
         
         @keyframes blink { 50% { opacity: 0.4; } }
     </style>
@@ -47,6 +50,8 @@ HTML_TEMPLATE = """
                 <th>ID Estación</th>
                 <th>Ubicación</th>
                 <th>Estado Actual</th>
+                <th>Caudal (L/min)</th>
+                <th>Vol. Acumulado (L)</th>
             </tr>
         </thead>
         <tbody>
@@ -63,10 +68,12 @@ HTML_TEMPLATE = """
                         {% endif %}
                     </span>
                 </td>
+                <td><strong>{{ station['flow'] }}</strong></td>
+                <td><strong>{{ station['vol'] }}</strong></td>
             </tr>
             {% else %}
             <tr>
-                <td colspan="3" style="text-align: center; color: #888;">No hay estaciones registradas en el sistema.</td>
+                <td colspan="5" style="text-align: center; color: #888;">No hay estaciones registradas en el sistema.</td>
             </tr>
             {% endfor %}
         </tbody>
@@ -74,6 +81,47 @@ HTML_TEMPLATE = """
 </body>
 </html>
 """
+
+def kafka_listener():
+    """Hilo secundario para consumir telemetría de central_events"""
+    conf = {
+        'bootstrap.servers': KAFKA_BOOTSTRAP_SERVERS,
+        'group.id': 'flask_dashboard_group',
+        'auto.offset.reset': 'latest'
+    }
+
+    try:
+        consumer = Consumer(conf)
+        consumer.subscribe(['central_events'])
+        print("[FLASK KAFKA] Suscrito exitosamente a 'central_events'")
+
+        while True:
+            msg = consumer.poll(1.0)
+            if msg is None:
+                continue
+            if msg.error():
+                if msg.error().code() != KafkaError._PARTITION_EOF:
+                    print(f"[FLASK KAFKA ERROR] {msg.error()}")
+                continue
+
+            payload = msg.value().decode('utf-8').strip()
+            parts = payload.split('#')
+            
+            # Formato: TELEMETRY#<ws_id>#<caudal>#<acumulado>
+            if len(parts) == 4 and parts[0] == "TELEMETRY":
+                ws_id = parts[1]
+                flow = parts[2]
+                vol = parts[3]
+                telemetry_live[ws_id] = {'flow': flow, 'vol': vol}
+                
+            # Formato: END_WATERING#<ws_id>#<vol>#<duracion>
+            elif len(parts) >= 2 and parts[0] == "END_WATERING":
+                ws_id = parts[1]
+                vol = parts[2]
+                telemetry_live[ws_id] = {'flow': 0, 'vol': vol}
+                
+    except Exception as e:
+        print(f"[FLASK KAFKA THREAD ERROR] {e}")
 
 def get_db_connection():
     conn = sqlite3.connect(DB_PATH)
@@ -84,11 +132,31 @@ def get_db_connection():
 def index():
     try:
         conn = get_db_connection()
-        stations = conn.execute('SELECT id, location, status FROM watering_station').fetchall()
+        db_stations = conn.execute('SELECT id, location, status FROM watering_station').fetchall()
         conn.close()
-    except Exception as e:
+
         stations = []
+        for st in db_stations:
+            ws_id = st['id']
+            
+            # Obtener directamente los datos consumidos de Kafka
+            live_data = telemetry_live.get(ws_id, {'flow': 0, 'vol': 0})
+            
+            stations.append({
+                'id': ws_id,
+                'location': st['location'],
+                'status': st['status'],
+                'flow': live_data['flow'],
+                'vol': live_data['vol']
+            })
+    except Exception as e:
+        print(f"[FLASK ERROR] {e}")
+        stations = []
+
     return render_template_string(HTML_TEMPLATE, stations=stations)
 
 if __name__ == '__main__':
+    t = threading.Thread(target=kafka_listener, daemon=True)
+    t.start()
+
     app.run(host='0.0.0.0', port=5000)

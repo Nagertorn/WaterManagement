@@ -18,8 +18,16 @@ void on_kafka_response_received(const char *topic, const char *payload) {
     char details[128] = {0};
 
     if (sscanf(payload, "RESPONSE#%31[^#]#%31[^#]#%31[^#]#%127s", target_op, ws_id, status, details) >= 3) {
-        if (strcmp(target_op, operator_id) == 0) {
-            printf("\n[NOTIFICACIÓN CENTRAL] Estación: %s | Estado: %s | Info: %s\n", ws_id, status, details);
+        if (strcmp(target_op, operator_id) == 0 || strcmp(target_op, "ALL") == 0) {
+            if (strcmp(status, "TELEMETRY") == 0) {
+                // Punto 7: Mostrar la telemetria en tiempo real
+                printf("\r[FO TELEMETRÍA EN DIRECTO] %s -> %s  ", ws_id, details);
+                fflush(stdout);
+            } else {
+                printf("\n\n=======================================================\n");
+                printf("[NOTIFICACIÓN CENTRAL] Estación: %s | Estado: %s\nInformación: %s\n", ws_id, status, details);
+                printf("=======================================================\n\n");
+            }
             
             if (strcmp(status, "AUTHORIZED") == 0 || strcmp(status, "DENIED") == 0 || strcmp(status, "FINISHED") == 0) {
                 service_completed = 1;

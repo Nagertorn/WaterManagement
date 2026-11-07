@@ -55,6 +55,7 @@ services:
       - ./data:/app/data
     environment:
       - DB_PATH=/app/data/water_managment.db
+      - KAFKA_BOOTSTRAP_SERVERS=broker:29092
     networks:
       - wm_net
     depends_on:

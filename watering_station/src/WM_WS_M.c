@@ -42,6 +42,7 @@ static void* console_handler_thread(void *arg) {
     printf(" Escribe 'fuga' o 'ko' -> Simular averia\n");
     printf(" Escribe 'ok'          -> Restaurar servicio\n");
     printf(" Escribe 'regar#<dur>' -> Solicitar riego local\n");
+    printf(" Escribe 'parar'       -> Finalizar riego en curso\n");
     printf("===========================================\n\n");
 
     while (is_running) {
@@ -70,9 +71,14 @@ static void* console_handler_thread(void *arg) {
                 printf("[MONITOR] Peticion de riego local (%d seg) enviada a Central...\n", dur);
                 socket_client_send(&central_client, message);
                 socket_client_receive(&central_client, response, sizeof(response));
+				printf("[CENTRAL RESPONSE] %s\n", response);
+			} else if (strcmp(input, "parar") == 0) {
+				snprintf(message, sizeof(message), "LOCAL_STOP_REQUEST#%s\n", ws_id);
+                printf("[MONITOR] Solicitando parada de riego a Central...\n");
+                socket_client_send(&central_client, message);
+                socket_client_receive(&central_client, response, sizeof(response));
                 printf("[CENTRAL RESPONSE] %s\n", response);
             }
-
         }
     }
     return NULL;

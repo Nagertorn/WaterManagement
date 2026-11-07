@@ -25,7 +25,7 @@ kafka_status_t init_kafka(kafka_context_t *ctx, const char *bootstrap_servers, c
 
 kafka_status_t kafka_send_message(kafka_context_t *ctx, const char *topic, const char *message);
 
-kafka_status_t start_kafka_consumer(kafka_context_t *ctx, const char *topic, kafka_msg_callback_t callback);
+kafka_status_t start_kafka_consumer(kafka_context_t *ctx, const char *topics_str, kafka_msg_callback_t callback);
 
 void close_kafka(kafka_context_t *ctx);
 
