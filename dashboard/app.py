@@ -9,8 +9,8 @@ app = Flask(__name__)
 DB_PATH = os.getenv("DB_PATH")
 KAFKA_BOOTSTRAP_SERVERS = os.getenv("KAFKA_BOOTSTRAP_SERVERS")
 
-# Diccionario global para la telemetría en directo
 telemetry_live = {}
+station_operators = {}
 
 HTML_TEMPLATE = """
 <!DOCTYPE html>
@@ -52,6 +52,7 @@ HTML_TEMPLATE = """
                 <th>Estado Actual</th>
                 <th>Caudal (L/min)</th>
                 <th>Vol. Acumulado (L)</th>
+                <th>Operador</th>
             </tr>
         </thead>
         <tbody>
@@ -70,6 +71,7 @@ HTML_TEMPLATE = """
                 </td>
                 <td><strong>{{ station['flow'] }}</strong></td>
                 <td><strong>{{ station['vol'] }}</strong></td>
+                <td><strong>{{ station['operator'] }}</strong></td>
             </tr>
             {% else %}
             <tr>
@@ -92,8 +94,8 @@ def kafka_listener():
 
     try:
         consumer = Consumer(conf)
-        consumer.subscribe(['central_events'])
-        print("[FLASK KAFKA] Suscrito exitosamente a 'central_events'")
+        consumer.subscribe(['central_events', 'central_requests'])
+        print("[FLASK KAFKA] Suscrito exitosamente a 'central_events' y 'central_requests'")
 
         while True:
             msg = consumer.poll(1.0)
@@ -104,21 +106,33 @@ def kafka_listener():
                     print(f"[FLASK KAFKA ERROR] {msg.error()}")
                 continue
 
+            topic = msg.topic()
             payload = msg.value().decode('utf-8').strip()
             parts = payload.split('#')
             
-            # Formato: TELEMETRY#<ws_id>#<caudal>#<acumulado>
-            if len(parts) == 4 and parts[0] == "TELEMETRY":
-                ws_id = parts[1]
-                flow = parts[2]
-                vol = parts[3]
-                telemetry_live[ws_id] = {'flow': flow, 'vol': vol}
-                
-            # Formato: END_WATERING#<ws_id>#<vol>#<duracion>
-            elif len(parts) >= 2 and parts[0] == "END_WATERING":
-                ws_id = parts[1]
-                vol = parts[2]
-                telemetry_live[ws_id] = {'flow': 0, 'vol': vol}
+            # Registrar qué operario solicita el riego en cada estación
+            if topic == 'central_requests':
+                # Formato: OPERATOR_WATER_REQUEST#<ws_id>#<op_id>#<duration>
+                if len(parts) >= 3 and parts[0] == "OPERATOR_WATER_REQUEST":
+                    ws_id = parts[1]
+                    op_id = parts[2]
+                    station_operators[ws_id] = op_id
+
+            elif topic == 'central_events':
+                # Formato: TELEMETRY#<ws_id>#<caudal>#<acumulado>
+                if len(parts) == 4 and parts[0] == "TELEMETRY":
+                    ws_id = parts[1]
+                    flow = parts[2]
+                    vol = parts[3]
+                    op_id = station_operators.get(ws_id, '-')
+                    telemetry_live[ws_id] = {'flow': flow, 'vol': vol, 'operator': op_id}
+                    
+                # Formato: END_WATERING#<ws_id>#<vol>#<duracion>
+                elif len(parts) >= 2 and parts[0] == "END_WATERING":
+                    ws_id = parts[1]
+                    vol = parts[2]
+                    telemetry_live[ws_id] = {'flow': 0, 'vol': vol, 'operator': '-'}
+                    station_operators.pop(ws_id, None)
                 
     except Exception as e:
         print(f"[FLASK KAFKA THREAD ERROR] {e}")
@@ -140,14 +154,15 @@ def index():
             ws_id = st['id']
             
             # Obtener directamente los datos consumidos de Kafka
-            live_data = telemetry_live.get(ws_id, {'flow': 0, 'vol': 0})
+            live_data = telemetry_live.get(ws_id, {'flow': 0, 'vol': 0, 'operator': '-'})
             
             stations.append({
                 'id': ws_id,
                 'location': st['location'],
                 'status': st['status'],
                 'flow': live_data['flow'],
-                'vol': live_data['vol']
+                'vol': live_data['vol'],
+                'operator': live_data.get('operator', '-')
             })
     except Exception as e:
         print(f"[FLASK ERROR] {e}")

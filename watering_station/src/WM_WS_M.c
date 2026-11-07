@@ -43,6 +43,7 @@ static void* health_checker_thread(void *arg) {
 				current_engine_fd = -1;
 				pthread_mutex_unlock(&engine_fd_mutex);
 			} else {
+				printf("\nPING to engine\n");
 				int bytes = read_network_message(fd, resp, sizeof(resp));
 				
 				if (bytes <= 0) {
