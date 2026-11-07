@@ -31,7 +31,7 @@ kafka_status_t init_kafka(kafka_context_t *ctx, const char *bootstrap_servers, c
     rd_kafka_conf_t *cons_conf = rd_kafka_conf_new();
     if (rd_kafka_conf_set(cons_conf, "bootstrap.servers", bootstrap_servers, errstr, sizeof(errstr)) != RD_KAFKA_CONF_OK ||
         rd_kafka_conf_set(cons_conf, "group.id", group_id, errstr, sizeof(errstr)) != RD_KAFKA_CONF_OK ||
-        rd_kafka_conf_set(cons_conf, "auto.offset.reset", "earliest", errstr, sizeof(errstr)) != RD_KAFKA_CONF_OK) {
+        rd_kafka_conf_set(cons_conf, "auto.offset.reset", "latest", errstr, sizeof(errstr)) != RD_KAFKA_CONF_OK) {
         
         fprintf(stderr, "[KAFKA ERROR] Consumer config: %s\n", errstr);
         rd_kafka_conf_destroy(cons_conf);

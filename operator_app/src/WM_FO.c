@@ -30,7 +30,7 @@ void on_kafka_response_received(const char *topic, const char *payload) {
 
 void request_watering(const char *ws_id, int duration) {
     char request_msg[256];
-    snprintf(request_msg, sizeof(request_msg), "REQUEST_WATER#%s#%s#%d\n", ws_id, operator_id, duration);
+    snprintf(request_msg, sizeof(request_msg), "OPERATOR_WATER_REQUEST#%s#%s#%d\n", ws_id, operator_id, duration);
 
     service_completed = 0;
     printf("[OPERARIO %s] Solicitando riego en %s por %d segundos...\n", operator_id, ws_id, duration);

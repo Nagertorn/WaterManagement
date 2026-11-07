@@ -14,15 +14,18 @@ typedef enum {
 
 typedef void (*socket_msg_callback_t)(int client_fd, const char *message);
 
+typedef void (*socket_disconnect_callback_t)(int client_fd);
+
 typedef struct {
     int server_fd;
     int port;
     pthread_t listener_thread;
     int is_running;
     socket_msg_callback_t msg_callback;
+	socket_disconnect_callback_t disconnect_callback;
 } socket_server_t;
 
-socket_status_t start_socket_server(socket_server_t *server, int port, socket_msg_callback_t callback);
+socket_status_t start_socket_server(socket_server_t *server, int port, socket_msg_callback_t callback, socket_disconnect_callback_t disconnect_callback);
 
 void stop_socket_server(socket_server_t *server);
 

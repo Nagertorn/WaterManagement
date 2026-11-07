@@ -41,6 +41,7 @@ static void* console_handler_thread(void *arg) {
     printf(" MONITOR CONTROL INTERFACE (%s)\n", ws_id);
     printf(" Escribe 'fuga' o 'ko' -> Simular averia\n");
     printf(" Escribe 'ok'          -> Restaurar servicio\n");
+    printf(" Escribe 'regar#<dur>' -> Solicitar riego local\n");
     printf("===========================================\n\n");
 
     while (is_running) {
@@ -49,6 +50,7 @@ static void* console_handler_thread(void *arg) {
 
             char message[256];
             char response[128];
+			int dur = 0;
 
             if (strcmp(input, "fuga") == 0 || strcmp(input, "ko") == 0) {
                 snprintf(message, sizeof(message), "STATUS#%s#LEAK\n", ws_id);
@@ -63,7 +65,14 @@ static void* console_handler_thread(void *arg) {
                 socket_client_send(&central_client, message);
                 socket_client_receive(&central_client, response, sizeof(response));
                 printf("[CENTRAL RESPONSE] %s\n", response);
+			} else if (sscanf(input, "regar#%d", &dur) == 1) {
+                snprintf(message, sizeof(message), "LOCAL_WATER_REQUEST#%s#%d\n", ws_id, dur);
+                printf("[MONITOR] Peticion de riego local (%d seg) enviada a Central...\n", dur);
+                socket_client_send(&central_client, message);
+                socket_client_receive(&central_client, response, sizeof(response));
+                printf("[CENTRAL RESPONSE] %s\n", response);
             }
+
         }
     }
     return NULL;
@@ -93,6 +102,11 @@ int main(int argc, char *argv[]) {
 
     if (socket_client_receive(&central_client, response, sizeof(response)) > 0) {
         printf("[CENTRAL RESPONSE] %s\n", response);
+		if (strstr(response, "NACK#ALREADY_REGISTERED") != NULL) {
+            fprintf(stderr, "[MONITOR ERROR] Ya existe una estación activa conectada con el ID '%s'. Abortando...\n", ws_id);
+            socket_client_close(&central_client);
+            return EXIT_FAILURE;
+        }
     } else {
         fprintf(stderr, "[MONITOR ERROR] No response from Central\n");
         socket_client_close(&central_client);
