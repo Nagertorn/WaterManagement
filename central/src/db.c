@@ -91,7 +91,10 @@ db_status_t read_watering_stations(sqlite3 *db) {
 
 db_status_t create_watering_station(sqlite3 *db, const char *id, const char *location, const char *status) {
 	char sql_query[256];
-	snprintf(sql_query, sizeof(sql_query), "INSERT INTO watering_station (id, location, status) VALUES ('%s', '%s', '%s')", id, location, status);
+	snprintf(sql_query, sizeof(sql_query),
+             "INSERT INTO watering_station (id, location, status) VALUES ('%s', '%s', '%s') "
+             "ON CONFLICT(id) DO UPDATE SET status = '%s', location = '%s';",
+             id, location, status, status, location);
 
 	char* error_message = NULL;
 	int result_code = sqlite3_exec(db, sql_query, NULL, NULL, &error_message);
@@ -206,6 +209,23 @@ db_status_t find_operator_by_id(sqlite3 *db, const char *id) {
 
     sqlite3_finalize(stmt);
     return status;
+}
+
+db_status_t mark_all_stations_disconnected(sqlite3 *db) {
+    if (!db) return DB_ERR_CANNOT_OPEN;
+
+    const char *sql_query = "UPDATE watering_station SET status = 'DESCONECTADA';";
+    char *error_message = NULL;
+
+    int result_code = sqlite3_exec(db, sql_query, NULL, NULL, &error_message);
+    if (result_code != SQLITE_OK) {
+        fprintf(stderr, "[DB ERROR] Update all DESCONECTADA: \n%s\n", error_message);
+        sqlite3_free(error_message);
+        return DB_ERR_CREATE_TABLE;
+    }
+
+    printf("[DB] Todas las estaciones marcadas como DESCONECTADA al arrancar\n");
+    return DB_SUCCESS;
 }
 
 void close_db(sqlite3 **db) {

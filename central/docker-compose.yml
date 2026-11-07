@@ -46,6 +46,20 @@ services:
       - wm_net
     command: ["8080", "broker:29092"]
 
+  dashboard:
+    build: ../dashboard
+    container_name: wm_dashboard
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./data:/app/data
+    environment:
+      - DB_PATH=/app/data/water_managment.db
+    networks:
+      - wm_net
+    depends_on:
+      - wm-central
+
 networks:
   wm_net:
     name: central_wm_net

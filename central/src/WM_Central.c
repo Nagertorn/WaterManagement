@@ -121,6 +121,8 @@ int main(int argc, char* argv[]) {
 		return EXIT_FAILURE;
 	}
 
+	mark_all_stations_disconnected(db);
+
 	if (init_kafka(&kafka_ctx, kafka_server, "wm_central_group") == KAFKA_SUCCESS) {
 		kafka_send_message(&kafka_ctx, "central_events", "INIT#CENTRAL");
 		kafka_send_message(&kafka_ctx, "central_requests", "INIT#CENTRAL");

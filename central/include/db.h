@@ -26,6 +26,8 @@ db_status_t find_watering_station_by_id(sqlite3 *db, const char *id, char *locat
 
 db_status_t find_operator_by_id(sqlite3 *db, const char *id);
 
+db_status_t mark_all_stations_disconnected(sqlite3 *db);
+
 void close_db(sqlite3 **db);
 
 #endif
