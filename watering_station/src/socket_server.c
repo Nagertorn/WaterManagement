@@ -41,6 +41,9 @@ static void* client_handler_thread(void *arg) {
         int bytes = read_network_message(client_fd, buffer, sizeof(buffer));
         if (bytes <= 0) {
             printf("[SOCKET] Client (fd: %d) disconnected.\n", client_fd);
+			if (server->disconnect_callback) {
+            	server->disconnect_callback(client_fd);
+         	}
             break;
         }
 
@@ -88,12 +91,13 @@ static void* socket_listener_loop(void *arg) {
     return NULL;
 }
 
-socket_status_t start_socket_server(socket_server_t *server, int port, socket_msg_callback_t callback) {
+socket_status_t start_socket_server(socket_server_t *server, int port, socket_msg_callback_t callback, socket_disconnect_callback_t disconnect_callback) {
     if (!server) return SOCKET_ERR_CREATE;
 
     server->port = port;
     server->is_running = 0;
     server->msg_callback = callback;
+    server->disconnect_callback = disconnect_callback;
 
     server->server_fd = socket(AF_INET, SOCK_STREAM, 0);
     if (server->server_fd < 0) {
