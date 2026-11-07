@@ -90,6 +90,8 @@ void on_kafka_event_received(const char *topic, const char *payload) {
 					printf("[CENTRAL] Autorizando riego para operario %s en %s (%s) [Estado: %s]\n", 
 							op_id, ws_id, location, status);
 
+					update_watering_station_status(db, ws_id, "REGANDO");
+
 					char op_resp[256];
 					snprintf(op_resp, sizeof(op_resp), "RESPONSE#%s#%s#AUTHORIZED#OK\n", op_id, ws_id);
 					kafka_send_message(&kafka_ctx, "operator_responses", op_resp);
@@ -161,6 +163,8 @@ void on_socket_event_received(int client_fd, const char *message) {
 			if (is_available) {
 				printf("[CENTRAL] Autorizando riego LOCAL en %s por %d segundos\n", ws_id, duration);
 				
+				update_watering_station_status(db, ws_id, "REGANDO");
+
 				char cmd_msg[256];
 				snprintf(cmd_msg, sizeof(cmd_msg), "START#%s#%d\n", ws_id, duration);
 				kafka_send_message(&kafka_ctx, "station_commands", cmd_msg);
