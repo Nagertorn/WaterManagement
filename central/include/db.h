@@ -22,6 +22,10 @@ db_status_t read_operators(sqlite3 *db);
 
 db_status_t create_operator(sqlite3 *db, const char *id, const char *name);
 
+db_status_t find_watering_station_by_id(sqlite3 *db, const char *id, char *location_out, char *status_out);
+
+db_status_t find_operator_by_id(sqlite3 *db, const char *id);
+
 void close_db(sqlite3 **db);
 
 #endif

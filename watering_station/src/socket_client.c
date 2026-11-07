@@ -5,6 +5,7 @@
 #include <arpa/inet.h>
 #include <sys/socket.h>
 #include "socket_client.h"
+#include <netdb.h>
 
 int socket_client_connect(socket_client_t *client, const char *ip, int port) {
     if (!client || !ip) return -1;
@@ -21,9 +22,17 @@ int socket_client_connect(socket_client_t *client, const char *ip, int port) {
     server_addr.sin_family = AF_INET;
     server_addr.sin_port = htons(port);
 
+    // Intentar resolver como IP literal primero
     if (inet_pton(AF_INET, ip, &server_addr.sin_addr) <= 0) {
-        close(client->socket_fd);
-        return -1;
+        // Si no es IP pura, resolver el nombre del host (ej: "wm_central") mediante el DNS de Docker
+        struct hostent *hp = gethostbyname(ip);
+        if (hp == NULL) {
+            fprintf(stderr, "[SOCKET ERROR] No se pudo resolver el host: %s\n", ip);
+            close(client->socket_fd);
+            client->socket_fd = -1;
+            return -1;
+        }
+        memcpy(&server_addr.sin_addr, hp->h_addr_list[0], hp->h_length);
     }
 
     if (connect(client->socket_fd, (struct sockaddr *)&server_addr, sizeof(server_addr)) < 0) {

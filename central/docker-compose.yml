@@ -44,9 +44,10 @@ services:
         condition: service_healthy
     networks:
       - wm_net
-    command: ["8080", "broker", "29092"]
+    command: ["8080", "broker:29092"]
 
 networks:
   wm_net:
+    name: central_wm_net
     driver: bridge
 

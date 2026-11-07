@@ -34,6 +34,7 @@ void on_kafka_command_received(const char *topic, const char *payload) {
 }
 
 static void* watering_telemetry_loop(void *arg) {
+	setbuf(stdout, NULL);
     (void)arg;
     int accumulated_volume = 0;
     int flow_rate = 12;

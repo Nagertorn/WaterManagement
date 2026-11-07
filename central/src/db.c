@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include "db.h"
 
 db_status_t init_db(const char *db_name, sqlite3 **db) {
@@ -44,6 +45,20 @@ db_status_t init_db(const char *db_name, sqlite3 **db) {
 		fprintf(stderr, "[DB ERROR] Table creation unsuccesfully: operators: \n%s\n", error_message);
 		sqlite3_free(error_message);
 		return DB_ERR_CREATE_TABLE;
+	}
+
+	// INSERT DEFAULT OPERATORS
+	error_message = NULL;
+	const char* sql_seed_operators =
+		"INSERT OR IGNORE INTO operator (id, name) VALUES "
+		"('FO-01', 'Operario 01'), "
+		"('FO-02', 'Operario 02');";
+
+	result_code = sqlite3_exec(*db, sql_seed_operators, NULL, NULL, &error_message);
+	if (result_code != SQLITE_OK) {
+		fprintf(stderr, "[DB ERROR] Table insertion unsuccesfully: operators: \n%s\n", error_message);
+		sqlite3_free(error_message);
+		return DB_ERR_QUERY;
 	}
 
 	fprintf(stdout, "[DB] Table creation succesfully: operators\n");
@@ -131,6 +146,66 @@ db_status_t create_operator(sqlite3 *db, const char *id, const char *name) {
 	}
 
 	return DB_SUCCESS;
+}
+
+db_status_t find_watering_station_by_id(sqlite3 *db, const char *id, char *location_out, char *status_out) {
+    char sql_query[256];
+    snprintf(sql_query, sizeof(sql_query), "SELECT location, status FROM watering_station WHERE id = '%s'", id);
+
+    sqlite3_stmt *stmt;
+    int result_code = sqlite3_prepare_v2(db, sql_query, -1, &stmt, NULL);
+
+    if (result_code != SQLITE_OK) {
+        fprintf(stderr, "[DB ERROR] Select by ID: watering_station: \n%s\n", sqlite3_errmsg(db));
+        return DB_ERR_CANNOT_OPEN;
+    }
+
+    db_status_t status = DB_ERR_CANNOT_OPEN;
+
+    if (sqlite3_step(stmt) == SQLITE_ROW) {
+        const unsigned char *location_val = sqlite3_column_text(stmt, 0);
+        const unsigned char *status_val = sqlite3_column_text(stmt, 1);
+
+        if (location_out && location_val) {
+            strcpy(location_out, (const char *)location_val);
+        }
+        if (status_out && status_val) {
+            strcpy(status_out, (const char *)status_val);
+        }
+
+        status = DB_SUCCESS;
+    } else {
+        fprintf(stderr, "[DB] Station ID '%s' not found\n", id);
+    }
+
+    sqlite3_finalize(stmt);
+    return status;
+}
+
+db_status_t find_operator_by_id(sqlite3 *db, const char *id) {
+    if (!db || !id) return DB_ERR_CANNOT_OPEN;
+
+    char sql_query[256];
+    snprintf(sql_query, sizeof(sql_query), "SELECT id FROM operator WHERE id = '%s'", id);
+
+    sqlite3_stmt *stmt;
+    int result_code = sqlite3_prepare_v2(db, sql_query, -1, &stmt, NULL);
+
+    if (result_code != SQLITE_OK) {
+        fprintf(stderr, "[DB ERROR] Select by ID: operator: \n%s\n", sqlite3_errmsg(db));
+        return DB_ERR_CANNOT_OPEN;
+    }
+
+    db_status_t status = DB_ERR_CANNOT_OPEN; // O tu enum para 'NO ENCONTRADO'
+
+    if (sqlite3_step(stmt) == SQLITE_ROW) {
+        status = DB_SUCCESS; // El operario existe en la BD
+    } else {
+        fprintf(stderr, "[DB] Operator ID '%s' not found\n", id);
+    }
+
+    sqlite3_finalize(stmt);
+    return status;
 }
 
 void close_db(sqlite3 **db) {

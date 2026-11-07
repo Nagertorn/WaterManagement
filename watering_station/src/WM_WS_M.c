@@ -12,10 +12,17 @@ static int is_running = 1;
 static char ws_id[32];
 
 void on_engine_message_received(int client_fd, const char *message) {
-    printf("[MONITOR] Health ping from Engine (fd %d): %s\n", client_fd, message);
+    printf("[MONITOR] Message from Engine (fd %d): %s\n", client_fd, message);
 
-    if (strcmp(message, "PING") == 0) {
+    if (strcmp(message, "GET_ID") == 0) {
+        char resp[64];
+        snprintf(resp, sizeof(resp), "ID#%s\n", ws_id);
+        send_network_message(client_fd, resp);
+        printf("[MONITOR] Handshake complete. Sent ID '%s' to Engine\n", ws_id);
+
+    } else if (strcmp(message, "PING") == 0) {
         send_network_message(client_fd, "PONG_OK\n");
+
     } else if (strcmp(message, "KO") == 0) {
         printf("[MONITOR] Engine reported KO! Notifying Central of LEAK...\n");
         
