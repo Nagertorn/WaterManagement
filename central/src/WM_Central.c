@@ -12,49 +12,90 @@ static sqlite3* db = NULL;
 static kafka_context_t kafka_ctx;
 
 typedef struct {
-    int fd;
-    char ws_id[32];
+	int fd;
+	char ws_id[32];
 } active_client_t;
 
 static active_client_t active_clients[64];
 static int num_active_clients = 0;
 
+typedef struct {
+	char ws_id[32];
+	char operator_id[32];
+} ws_operator_mapping_t;
+
+static ws_operator_mapping_t active_service_map[64];
+static int num_active_services = 0;
+
+void set_ws_operator(const char *ws_id, const char *op_id) {
+	for (int i = 0; i < num_active_services; i++) {
+		if (strcmp(active_service_map[i].ws_id, ws_id) == 0) {
+			strncpy(active_service_map[i].operator_id, op_id, 31);
+			return;
+		}
+	}
+	if (num_active_services < 64) {
+		strncpy(active_service_map[num_active_services].ws_id, ws_id, 31);
+		strncpy(active_service_map[num_active_services].operator_id, op_id, 31);
+		num_active_services++;
+	}
+}
+
+const char* get_ws_operator(const char *ws_id) {
+	for (int i = 0; i < num_active_services; i++) {
+		if (strcmp(active_service_map[i].ws_id, ws_id) == 0) {
+			return active_service_map[i].operator_id;
+		}
+	}
+	return NULL;
+}
+
+void clear_ws_operator(const char *ws_id) {
+	for (int i = 0; i < num_active_services; i++) {
+		if (strcmp(active_service_map[i].ws_id, ws_id) == 0) {
+			active_service_map[i] = active_service_map[num_active_services - 1];
+			num_active_services--;
+			break;
+		}
+	}
+}
+
 void register_client_fd(int fd, const char *ws_id) {
-    for (int i = 0; i < num_active_clients; i++) {
-        if (active_clients[i].fd == fd) {
-            strncpy(active_clients[i].ws_id, ws_id, sizeof(active_clients[i].ws_id) - 1);
-            return;
-        }
-    }
-    if (num_active_clients < 64) {
-        active_clients[num_active_clients].fd = fd;
-        strncpy(active_clients[num_active_clients].ws_id, ws_id, sizeof(active_clients[num_active_clients].ws_id) - 1);
-        num_active_clients++;
-    }
+	for (int i = 0; i < num_active_clients; i++) {
+		if (active_clients[i].fd == fd) {
+			strncpy(active_clients[i].ws_id, ws_id, sizeof(active_clients[i].ws_id) - 1);
+			return;
+		}
+	}
+	if (num_active_clients < 64) {
+		active_clients[num_active_clients].fd = fd;
+		strncpy(active_clients[num_active_clients].ws_id, ws_id, sizeof(active_clients[num_active_clients].ws_id) - 1);
+		num_active_clients++;
+	}
 }
 
 void handle_client_disconnect(int fd) {
-    pthread_mutex_lock(&core_mutex);
-    for (int i = 0; i < num_active_clients; i++) {
-        if (active_clients[i].fd == fd) {
-            printf("[CENTRAL] Estación '%s' desconectada (fd: %d). Actualizando BD...\n", active_clients[i].ws_id, fd);
-            update_watering_station_status(db, active_clients[i].ws_id, "DESCONECTADA");
-            
-            active_clients[i] = active_clients[num_active_clients - 1];
-            num_active_clients--;
-            break;
-        }
-    }
-    pthread_mutex_unlock(&core_mutex);
+	pthread_mutex_lock(&core_mutex);
+	for (int i = 0; i < num_active_clients; i++) {
+		if (active_clients[i].fd == fd) {
+			printf("[CENTRAL] Estación '%s' desconectada (fd: %d). Actualizando BD...\n", active_clients[i].ws_id, fd);
+			update_watering_station_status(db, active_clients[i].ws_id, "DESCONECTADA");
+
+			active_clients[i] = active_clients[num_active_clients - 1];
+			num_active_clients--;
+			break;
+		}
+	}
+	pthread_mutex_unlock(&core_mutex);
 }
 
 bool is_ws_id_connected(const char *ws_id) {
-    for (int i = 0; i < num_active_clients; i++) {
-        if (strcmp(active_clients[i].ws_id, ws_id) == 0) {
-            return true;
-        }
-    }
-    return false;
+	for (int i = 0; i < num_active_clients; i++) {
+		if (strcmp(active_clients[i].ws_id, ws_id) == 0) {
+			return true;
+		}
+	}
+	return false;
 }
 
 void on_kafka_event_received(const char *topic, const char *payload) {
@@ -68,7 +109,17 @@ void on_kafka_event_received(const char *topic, const char *payload) {
 		char op_id[32] = {0};
 		int duration = 0;
 
-		if (sscanf(payload, "%31[^#]#%31[^#]#%31[^#]#%d", command, ws_id, op_id, &duration) >= 3) {
+		if (strncmp(payload, "LIST_STATIONS", 13) == 0) {
+			char op_id[32] = {0};
+			if (sscanf(payload, "LIST_STATIONS#%31s", op_id) == 1) {
+				char list_buf[1024] = {0};
+				get_available_stations_string(db, list_buf, sizeof(list_buf));
+
+				char op_resp[1024];
+				snprintf(op_resp, sizeof(op_resp), "RESPONSE#%s#ALL#STATIONS_LIST#%s\n", op_id, list_buf);
+				kafka_send_message(&kafka_ctx, "operator_responses", op_resp);
+			}
+		} else if (sscanf(payload, "%31[^#]#%31[^#]#%31[^#]#%d", command, ws_id, op_id, &duration) >= 3) {
 			if (strcmp(command, "OPERATOR_WATER_REQUEST") == 0) {
 				if (find_operator_by_id(db, op_id) != DB_SUCCESS) {
 					printf("[CENTRAL ERROR] Operario '%s' no encontrado en BD\n", op_id);
@@ -91,6 +142,7 @@ void on_kafka_event_received(const char *topic, const char *payload) {
 							op_id, ws_id, location, status);
 
 					update_watering_station_status(db, ws_id, "REGANDO");
+					set_ws_operator(ws_id, op_id);
 
 					char op_resp[256];
 					snprintf(op_resp, sizeof(op_resp), "RESPONSE#%s#%s#AUTHORIZED#OK\n", op_id, ws_id);
@@ -120,10 +172,12 @@ void on_kafka_event_received(const char *topic, const char *payload) {
 			if (strcmp(event_type, "TELEMETRY") == 0) {
 				printf("[CENTRAL TELEMETRÍA] %s -> Caudal: %d L/min | Acumulado: %d L\n", ws_id, flow, vol);
 
-				char op_telem[256];
-				snprintf(op_telem, sizeof(op_telem), "RESPONSE#ALL#%s#TELEMETRY#Caudal:%dL/min_Vol:%dL\n", ws_id, flow, vol);
-				kafka_send_message(&kafka_ctx, "operator_responses", op_telem);
-
+				const char *target_op = get_ws_operator(ws_id);
+				if (target_op) {
+					char op_telem[256];
+					snprintf(op_telem, sizeof(op_telem), "RESPONSE#%s#%s#TELEMETRY#Caudal:%dL/min_Vol:%dL\n", target_op, ws_id, flow, vol);
+					kafka_send_message(&kafka_ctx, "operator_responses", op_telem);
+				}
 			} else if (strcmp(event_type, "END_WATERING") == 0) {
 				int total_vol = flow;
 				int total_duration = vol;
@@ -134,9 +188,13 @@ void on_kafka_event_received(const char *topic, const char *payload) {
 
 				update_watering_station_status(db, ws_id, "DISPONIBLE");
 
-				char op_resp[256];
-				snprintf(op_resp, sizeof(op_resp), "RESPONSE#ALL#%s#FINISHED#Volumen_Total:%dL_Duracion:%ds\n", ws_id, total_vol, total_duration);
-				kafka_send_message(&kafka_ctx, "operator_responses", op_resp);
+				const char *target_op = get_ws_operator(ws_id);
+				if (target_op) {
+					char op_resp[256];
+					snprintf(op_resp, sizeof(op_resp), "RESPONSE#%s#%s#FINISHED#Volumen_Total:%dL_Duracion:%ds\n", target_op, ws_id, total_vol, total_duration);
+					kafka_send_message(&kafka_ctx, "operator_responses", op_resp);
+					clear_ws_operator(ws_id);
+				}
 			}
 		}
 	}
@@ -180,7 +238,7 @@ void on_socket_event_received(int client_fd, const char *message) {
 
 			if (is_available) {
 				printf("[CENTRAL] Autorizando riego LOCAL en %s por %d segundos\n", ws_id, duration);
-				
+
 				update_watering_station_status(db, ws_id, "REGANDO");
 
 				char cmd_msg[256];

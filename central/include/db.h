@@ -2,6 +2,7 @@
 #define DB_H
 
 #include <sqlite3.h>
+#include <stddef.h>
 
 typedef enum {
     DB_SUCCESS = 0,
@@ -27,6 +28,8 @@ db_status_t find_watering_station_by_id(sqlite3 *db, const char *id, char *locat
 db_status_t find_operator_by_id(sqlite3 *db, const char *id);
 
 db_status_t mark_all_stations_disconnected(sqlite3 *db);
+
+db_status_t get_available_stations_string(sqlite3 *db, char *buffer_out, size_t max_len);
 
 void close_db(sqlite3 **db);
 
