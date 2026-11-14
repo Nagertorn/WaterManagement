@@ -31,8 +31,8 @@ HTML_TEMPLATE = """
         .status-badge { padding: 6px 12px; border-radius: 4px; font-weight: bold; display: inline-block; }
         .DISPONIBLE { background-color: #2e7d32; color: #ffffff; }
         .REGANDO { background-color: #1b5e20; color: #ffffff; animation: blink 1s infinite; }
-        .LEAK { background-color: #c62828; color: #ffffff; }
-        .OUT_OF_SERVICE { background-color: #ef6c00; color: #ffffff; }
+        .FUGA { background-color: #c62828; color: #ffffff; }
+        .FUERA_DE_SERVICIO { background-color: #ef6c00; color: #ffffff; }
         .DESCONECTADA { background-color: #424242; color: #bdbdbd; }
         
         @keyframes blink { 50% { opacity: 0.4; } }
@@ -62,8 +62,8 @@ HTML_TEMPLATE = """
                 <td>{{ station['location'] }}</td>
                 <td>
                     <span class="status-badge {{ station['status'] }}">
-                        {% if station['status'] == 'OUT_OF_SERVICE' %}
-                            Fuera de Servicio
+                        {% if station['status'] == 'FUERA_DE_SERVICIO' %}
+                            FUERA DE SERVICIO
                         {% else %}
                             {{ station['status'] }}
                         {% endif %}
@@ -150,6 +150,7 @@ def index():
         conn.close()
 
         stations = []
+
         for st in db_stations:
             ws_id = st['id']
             

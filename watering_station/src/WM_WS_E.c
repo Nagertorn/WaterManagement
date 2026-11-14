@@ -64,10 +64,8 @@ static void* monitor_listener_loop(void *arg) {
 			if (strstr(buffer, "PING") != NULL) {
 				if (has_fault) {
 					socket_client_send(&monitor_client, "KO\n");
-					printf("KO to monitor\n");
 				} else {
 					socket_client_send(&monitor_client, "PONG_OK\n");
-					printf("PONG_OK to monitor\n");
 				}
 			}
 		} else {

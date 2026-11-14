@@ -37,19 +37,18 @@ static void* health_checker_thread(void *arg) {
 
 		if (fd > 0) {
 			if (send_network_message(fd, "PING\n") < 0) {
-				printf("\n[MONITOR ALERTA] Error al enviar PING al Engine (fd %d). Notificando LEAK...\n", fd);
-				notify_central_status("LEAK");
+				printf("\n[MONITOR ALERTA] Error al enviar PING al Engine (fd %d). Notificando FUGA...\n", fd);
+				notify_central_status("FUGA");
 				pthread_mutex_lock(&engine_fd_mutex);
 				current_engine_fd = -1;
 				pthread_mutex_unlock(&engine_fd_mutex);
 			} else {
-				printf("\nPING to engine\n");
 				int bytes = read_network_message(fd, resp, sizeof(resp));
 				
 				if (bytes <= 0) {
 					if (!is_in_leak) {
-						printf("\n[MONITOR ALERTA] Conexión con el Engine perdida. Notificando LEAK...\n");
-						notify_central_status("LEAK");
+						printf("\n[MONITOR ALERTA] Conexión con el Engine perdida. Notificando FUGA...\n");
+						notify_central_status("FUGA");
 						is_in_leak = 1;
 					}
 					pthread_mutex_lock(&engine_fd_mutex);
@@ -57,8 +56,8 @@ static void* health_checker_thread(void *arg) {
 					pthread_mutex_unlock(&engine_fd_mutex);
 				} else if (strstr(resp, "KO") != NULL) {
 					if (!is_in_leak) {
-						printf("\n[MONITOR ALERTA] El Engine ha respondido KO. Notificando LEAK...\n");
-						notify_central_status("LEAK");
+						printf("\n[MONITOR ALERTA] El Engine ha respondido KO. Notificando FUGA...\n");
+						notify_central_status("FUGA");
 						is_in_leak = 1;
 					}
 				} else {
@@ -89,8 +88,8 @@ void on_engine_message_received(int client_fd, const char *message) {
 		notify_central_status("DISPONIBLE");
 
 	} else if (strcmp(message, "KO") == 0) {
-		printf("\n[MONITOR ALERTA] Mensaje KO recibido del Engine. Notificando LEAK a Central...\n");
-		notify_central_status("LEAK");
+		printf("\n[MONITOR ALERTA] Mensaje KO recibido del Engine. Notificando FUGA a Central...\n");
+		notify_central_status("FUGA");
 	}
 }
 
@@ -98,8 +97,8 @@ void on_engine_disconnect(int client_fd) {
 	pthread_mutex_lock(&engine_fd_mutex);
 	if (current_engine_fd == client_fd) {
 		current_engine_fd = -1;
-		printf("\n[MONITOR ALERTA] Pérdida física de conexión con el Engine (fd: %d). Notificando LEAK a Central...\n", client_fd);
-		notify_central_status("LEAK");
+		printf("\n[MONITOR ALERTA] Pérdida física de conexión con el Engine (fd: %d). Notificando FUGA a Central...\n", client_fd);
+		notify_central_status("FUGA");
 	}
 	pthread_mutex_unlock(&engine_fd_mutex);
 }
@@ -123,7 +122,7 @@ static void* console_handler_thread(void *arg) {
 			int dur = 0;
 
 			if (strcmp(input, "fuga") == 0 || strcmp(input, "ko") == 0) {
-				notify_central_status("LEAK");
+				notify_central_status("FUGA");
 
 			} else if (strcmp(input, "ok") == 0) {
 				notify_central_status("DISPONIBLE");
