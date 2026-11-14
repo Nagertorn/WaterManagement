@@ -109,6 +109,7 @@ void on_kafka_event_received(const char *topic, const char *payload) {
 		char op_id[32] = {0};
 		int duration = 0;
 
+		
 		if (strncmp(payload, "LIST_STATIONS", 13) == 0) {
 			char op_id[32] = {0};
 			if (sscanf(payload, "LIST_STATIONS#%31s", op_id) == 1) {
@@ -119,6 +120,15 @@ void on_kafka_event_received(const char *topic, const char *payload) {
 				snprintf(op_resp, sizeof(op_resp), "RESPONSE#%s#ALL#STATIONS_LIST#%s\n", op_id, list_buf);
 				kafka_send_message(&kafka_ctx, "operator_responses", op_resp);
 			}
+		} else if (sscanf(payload, "BLOCK#%31s", ws_id) == 1) {
+			printf("[CENTRAL] Bloqueando estación %s (Fuera de Servicio)\n", ws_id);
+			update_watering_station_status(db, ws_id, "FUERA_DE_SERVICIO");
+
+		} 
+		else if (sscanf(payload, "ACTIVATE#%31s", ws_id) == 1) {
+			printf("[CENTRAL] Activando estación %s (Disponible)\n", ws_id);
+			update_watering_station_status(db, ws_id, "DISPONIBLE");
+
 		} else if (sscanf(payload, "%31[^#]#%31[^#]#%31[^#]#%d", command, ws_id, op_id, &duration) >= 3) {
 			if (strcmp(command, "OPERATOR_WATER_REQUEST") == 0) {
 				if (find_operator_by_id(db, op_id) != DB_SUCCESS) {

@@ -51,6 +51,7 @@ db_status_t init_db(const char *db_name, sqlite3 **db) {
 	error_message = NULL;
 	const char* sql_seed_operators =
 		"INSERT OR IGNORE INTO operator (id, name) VALUES "
+		"('CENTRAL', 'Panel Central'), "
 		"('FO-01', 'Operario 01'), "
 		"('FO-02', 'Operario 02');";
 

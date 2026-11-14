@@ -1,13 +1,16 @@
 import os
 import sqlite3
 import threading
-from flask import Flask, render_template_string
-from confluent_kafka import Consumer, KafkaError
+from flask import Flask, render_template_string, request, redirect, url_for
+from confluent_kafka import Consumer, Producer, KafkaError
 
 app = Flask(__name__)
 
 DB_PATH = os.getenv("DB_PATH")
 KAFKA_BOOTSTRAP_SERVERS = os.getenv("KAFKA_BOOTSTRAP_SERVERS")
+
+producer_conf = {'bootstrap.servers': KAFKA_BOOTSTRAP_SERVERS}
+kafka_producer = Producer(producer_conf)
 
 telemetry_live = {}
 station_operators = {}
@@ -53,6 +56,7 @@ HTML_TEMPLATE = """
                 <th>Caudal (L/min)</th>
                 <th>Vol. Acumulado (L)</th>
                 <th>Operador</th>
+                <th>Acciones</th>
             </tr>
         </thead>
         <tbody>
@@ -72,6 +76,27 @@ HTML_TEMPLATE = """
                 <td><strong>{{ station['flow'] }}</strong></td>
                 <td><strong>{{ station['vol'] }}</strong></td>
                 <td><strong>{{ station['operator'] }}</strong></td>
+                <td>
+                    <form action="/action/{{ station['id'] }}/start" method="POST" style="display:inline; margin-right: 5px;">
+                        <button type="submit" style="background:#2e7d32; color:white; border:none; padding:5px 8px; border-radius:3px; cursor:pointer;">Regar (10)</button>
+                    </form>
+
+                    </br>
+                    </br>
+                    {% if station['status'] == 'FUERA_DE_SERVICIO' %}
+                    <form action="/action/{{ station['id'] }}/activate" method="POST" style="display:inline;">
+                        <button type="submit" style="background:#1976d2; color:white; border:none; padding:5px 8px; border-radius:3px; cursor:pointer;">Activar</button>
+                    </form>
+                    {% else %}
+                    <form action="/action/{{ station['id'] }}/block" method="POST" style="display:inline;">
+                        <button type="submit"
+                                style="background:#ef6c00; color:white; border:none; padding:5px 8px; border-radius:3px; {% if station['status'] != 'DISPONIBLE' %}background:#8c4600; color:#dcdcdc; cursor:not-allowed;{% else %}cursor:pointer;{% endif %}"
+                                {% if station['status'] != 'DISPONIBLE' %}disabled{% endif %}>
+                            Bloquear
+                        </button>
+                    </form>
+                    {% endif %}
+                </td>
             </tr>
             {% else %}
             <tr>
@@ -170,6 +195,30 @@ def index():
         stations = []
 
     return render_template_string(HTML_TEMPLATE, stations=stations)
+
+@app.route('/action/<ws_id>/<action_type>', methods=['POST'])
+def trigger_action(ws_id, action_type):
+    try:
+        if action_type == 'start':
+            cmd = f"OPERATOR_WATER_REQUEST#{ws_id}#CENTRAL#10"
+            
+        elif action_type == 'block':
+            cmd = f"BLOCK#{ws_id}"
+            
+        elif action_type == 'activate':
+            cmd = f"ACTIVATE#{ws_id}"
+            
+        else:
+            return "Acción no válida", 400
+
+        kafka_producer.produce('central_requests', cmd.encode('utf-8'))
+        kafka_producer.flush()
+        print(f"[FLASK ACTION] Enviado a 'central_requests': {cmd}")
+        
+    except Exception as e:
+        print(f"[FLASK ACTION ERROR] {e}")
+
+    return redirect(url_for('index'))
 
 if __name__ == '__main__':
     t = threading.Thread(target=kafka_listener, daemon=True)
