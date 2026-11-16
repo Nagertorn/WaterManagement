@@ -10,9 +10,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /app
 
-COPY Makefile ./
-COPY include/ ./include/
-COPY src/ ./src/
+COPY central/Makefile ./
+COPY central/include/ ./include/
+COPY central/src/ ./src/
 RUN mkdir -p data
 RUN make
 
