@@ -20,7 +20,6 @@ void on_kafka_response_received(const char *topic, const char *payload) {
 	if (sscanf(payload, "RESPONSE#%31[^#]#%31[^#]#%31[^#]#%127[^\n]", target_op, ws_id, status, details) >= 3) {
 		if (strcmp(target_op, operator_id) == 0 || strcmp(target_op, "ALL") == 0) {
 			if (strcmp(status, "TELEMETRY") == 0) {
-				// Punto 7: Mostrar la telemetria en tiempo real
 				printf("\r[FO TELEMETRÍA EN DIRECTO] %s -> %s  ", ws_id, details);
 				fflush(stdout);
 			} else if (strcmp(status, "STATIONS_LIST") == 0) {
